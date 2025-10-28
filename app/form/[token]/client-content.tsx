@@ -14,7 +14,7 @@ import { useRef } from "react";
 export default function ClientContent({ token }: { token: string }) {
   const status = useTokenValidation(token);
   const { loading, survey, error } = useSurveyByToken(token);
-  const formRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   if (loading)
     return (

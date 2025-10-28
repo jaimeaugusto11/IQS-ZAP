@@ -50,7 +50,7 @@ function buildSchema(survey: IQSSurvey) {
 // ------------------------------------------
 // Componente principal
 // ------------------------------------------
-export const IQSForm = forwardRef<HTMLFormElement, { token: string; survey: IQSSurvey }>(
+export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSurvey }>(
   ({ token, survey }, ref) => {
     const router = useRouter();
     const schema = buildSchema(survey);
@@ -110,11 +110,10 @@ export const IQSForm = forwardRef<HTMLFormElement, { token: string; survey: IQSS
       </CardHeader>
 
       <Separator />
-
       
-
-
       <CardContent className="space-y-8 p-6">
+        <div></div>
+        <div ref={ref}>
         {/* Introdução */}
         <p className="text-sm text-muted-foreground">
           Por favor, leia atentamente cada afirmativa e responda conforme o seu
@@ -124,11 +123,12 @@ export const IQSForm = forwardRef<HTMLFormElement, { token: string; survey: IQSS
             5 = Concordo Totalmente.
           </span>
         </p>
+        </div>
 
         
         {/* Formulário */}
         <Form {...form}>
-          <form ref={ref} onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form  onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             {/* Cabeçalho dos números 1–5 (somente no topo) */}
             {survey.questions.some((q) => q.type === "likert") && (
               <div className="grid grid-cols-[minmax(320px,1fr)_repeat(5,72px)] text-center text-sm font-medium text-gray-600">

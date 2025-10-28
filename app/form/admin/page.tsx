@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ------------------------------------------
 // file: app/iqs/admin/page.tsx
-// Lista de inquéritos (CRUD)
+// Lista de inquéritos (CRUD) - layout moderno e empresarial
 // ------------------------------------------
 "use client";
+
 import { useEffect, useState } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -12,36 +13,56 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { toast } from "sonner";
 
-export default function AdminListPage(){
-  const [items,setItems] = useState<any[]>([]);
-  useEffect(()=>{(async()=>{
-    const snap = await getDocs(collection(db,"iqsSurveys"));
-    setItems(snap.docs.map(d=>({ id:d.id, ...d.data()})));
-  })();},[]);
+interface IQSSurvey {
+  id: string;
+  title: string;
+  department: string;
+  archived?: boolean;
+  archivedAt?: any;
+}
 
-  async function archive(id:string){
-    await updateDoc(doc(db,"iqsSurveys",id),{ archived:true, archivedAt: new Date() as any });
+export default function AdminListPage() {
+  const [items, setItems] = useState<IQSSurvey[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, "iqsSurveys"));
+      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as IQSSurvey)));
+    })();
+  }, []);
+
+  async function archive(id: string) {
+    await updateDoc(doc(db, "iqsSurveys", id), { archived: true, archivedAt: new Date() as any });
     toast.success("Inquérito arquivado.");
-    setItems(prev=>prev.filter(x=>x.id!==id));
+    setItems(prev => prev.filter(x => x.id !== id));
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Inquéritos</h1>
-        <Button asChild><Link href="/form/admin/new">Novo Inquérito</Link></Button>
+    <main className="mx-auto max-w-7xl p-8 space-y-8">
+      {/* Cabeçalho */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold text-gray-900">Inquéritos</h1>
+        <Button asChild className="px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md transition">
+          <Link href="/form/admin/new">Novo Inquérito</Link>
+        </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map((s)=> (
-          <Card key={s.id} className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">{s.title}</CardTitle>
+
+      {/* Lista de cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {items.map((s) => (
+          <Card key={s.id} className="border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1">
+            <CardHeader className="pb-0">
+              <CardTitle className="text-xl font-semibold text-gray-800">{s.title}</CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">{s.department}</div>
-              <div className="flex gap-2">
-                <Button asChild variant="secondary"><Link href={`/form/admin/${s.id}`}>Editar</Link></Button>
-                <Button variant="destructive" onClick={()=>archive(s.id)}>Arquivar</Button>
+            <CardContent className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 gap-4">
+              <div className="text-sm text-gray-500">{s.department}</div>
+              <div className="flex gap-3">
+                <Button asChild variant="outline" className="px-4 py-2 text-gray-700 hover:bg-gray-100 transition">
+                  <Link href={`/form/admin/${s.id}`}>Editar</Link>
+                </Button>
+                <Button variant="destructive" className="px-4 py-2" onClick={() => archive(s.id)}>
+                  Arquivar
+                </Button>
               </div>
             </CardContent>
           </Card>
