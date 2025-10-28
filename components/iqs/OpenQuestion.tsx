@@ -24,6 +24,7 @@ export function OpenQuestion({
         maxLength={max}
         placeholder="Introduza a sua resposta"
         className="min-h-28"
+        defaultValue={""}
       />
       <div className="text-right text-xs text-muted-foreground">
         {value.length}/{max}

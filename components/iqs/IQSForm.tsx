@@ -112,8 +112,8 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
       <Separator />
       
       <CardContent className="space-y-8 p-6">
-        <div></div>
-        <div ref={ref}>
+        
+        <div ref={ref} className="">
         {/* Introdução */}
         <p className="text-sm text-muted-foreground">
           Por favor, leia atentamente cada afirmativa e responda conforme o seu
@@ -128,7 +128,7 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
         
         {/* Formulário */}
         <Form {...form}>
-          <form  onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form  onSubmit={form.handleSubmit(onSubmit)} className="space-y-2.5">
             {/* Cabeçalho dos números 1–5 (somente no topo) */}
             {survey.questions.some((q) => q.type === "likert") && (
               <div className="grid grid-cols-[minmax(320px,1fr)_repeat(5,72px)] text-center text-sm font-medium text-gray-600">
@@ -158,9 +158,10 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
                         />
                       ) : (
                         <OpenQuestion
-                          value={field.value as string}
+                          value={field.value as string }
                           onChange={field.onChange}
                           max={q.maxLength ?? 500}
+                          
                         />
                       )}
                     </FormControl>

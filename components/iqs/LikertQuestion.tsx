@@ -44,11 +44,22 @@ export function LikertQuestion({
         className="col-span-5 grid grid-cols-5 text-center"
       >
         {[1, 2, 3, 4, 5].map((n) => (
-          <div key={n} className="flex flex-col items-center justify-center p-1">
+          <div
+            key={n}
+            className="flex flex-col items-center justify-center p-1"
+          >
             <RadioGroupItem
               id={`${name}-${n}`}
               value={String(n)}
-              className="h-4 w-4"
+              className="
+    h-4 w-4 rounded-full border-2 border-gray-300
+    bg-white
+    hover:border-gray-500
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400
+    data-[state=checked]:bg-amber-400
+    data-[state=checked]:border-amber-400
+    transition-colors duration-200
+  "
               aria-label={`${n}`}
             />
           </div>
