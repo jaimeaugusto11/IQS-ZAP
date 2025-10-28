@@ -56,7 +56,7 @@ export default function NewSurveyPage() {
       title: "",
       department: "Formação",
       description: "",
-      baseUrl: "https://iqs.zap.co/iqs",
+      baseUrl: "https://iqs-zap.vercel.app/form",
       questions: [
         {
           id: "q1",
@@ -214,6 +214,7 @@ export default function NewSurveyPage() {
                 <Input
                   {...form.register("baseUrl")}
                   placeholder="https://iqs.zap.co/iqs"
+                  disabled
                 />
               </div>
             </div>

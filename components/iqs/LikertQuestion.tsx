@@ -52,14 +52,14 @@ export function LikertQuestion({
               id={`${name}-${n}`}
               value={String(n)}
               className="
-    h-4 w-4 rounded-full border-2 border-gray-300
-    bg-white
-    hover:border-gray-500
-    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400
-    data-[state=checked]:bg-amber-400
-    data-[state=checked]:border-amber-400
-    transition-colors duration-200
-  "
+                      h-4 w-4 rounded-full border-2 border-gray-300
+                      bg-white
+                      hover:border-gray-500
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400
+                      data-[state=checked]:bg-amber-400
+                      data-[state=checked]:border-amber-400
+                      transition-colors duration-200
+                    "
               aria-label={`${n}`}
             />
           </div>

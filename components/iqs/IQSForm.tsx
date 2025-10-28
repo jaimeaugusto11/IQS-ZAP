@@ -58,8 +58,9 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: Object.fromEntries(
-      survey.questions.map((q) => [q.id, q.type === "likert"])
-    ),
+  survey.questions.map((q) => [q.id, q.type === "likert" ? 0 : ""])
+),
+
     mode: "onChange",
   });
 

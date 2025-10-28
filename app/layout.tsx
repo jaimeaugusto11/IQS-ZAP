@@ -14,9 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "IQS ZAP",
-  icons:{
-    icon:"/icon.png"
-  }
+  icons: {
+    icon: "/icon.png",        // favicon principal
+    shortcut: "/icon.png",    // favicon para atalhos
+    apple: "/icon.png",       // favicon para iOS
+  },
 };
 
 export default function RootLayout({
