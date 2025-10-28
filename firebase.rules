@@ -1,0 +1,65 @@
+// ------------------------------------------
+// file: firestore.rules
+// Regras de segurança (ajuste conforme o seu projecto)
+// ------------------------------------------
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir apenas GET por ID exacto do token (sem listagem)
+    match /iqsTokens/{token} {
+      allow get: if true; // opcionalmente restrinja por origem ou Cloud Functions
+      allow list: if false;
+      allow update: if false; // apenas via transacção do cliente para marcar 'used'
+      allow create, delete: if false;
+    }
+
+    match /iqsResponses/{docId} {
+      allow create: if request.resource.data.token is string
+        && exists(/databases/$(database)/documents/iqsTokens/$(request.resource.data.token))
+        && get(/databases/$(database)/documents/iqsTokens/$(request.resource.data.token)).data.used == false;
+      allow read: if false; // respostas não são públicas
+      allow update, delete: if false;
+    }
+
+    // Permitir a transacção que marca o token como usado
+    match /iqsTokens/{tokenId} {
+      allow update: if request.resource.data.used == true
+        && resource.data.used == false; // apenas transição false -> true
+    }
+  }
+
+  // ------------------------------------------
+// file: firestore.rules (adições)
+// ------------------------------------------
+// ... regras anteriores ...
+match /databases/{database}/documents {
+  match /iqsSurveys/{surveyId} {
+    allow read: if true; // restringir a admins em produção
+    allow create: if true; // restringir a admins
+    allow update: if true; // permitir edição no admin
+    allow delete: if false; // preferir arquivar
+  }
+  match /iqsTokens/{tokenId} {
+    allow create: if true; // restringir a admin
+    allow get: if true;
+    allow update: if request.resource.data.used == true && resource.data.used == false;
+    allow list: if false;
+  }
+}
+
+// ------------------------------------------
+// ... regras anteriores ...
+match /databases/{database}/documents {
+  match /iqsSurveys/{surveyId} {
+    allow read: if true; // ou restrito a admins
+    allow create: if true; // restrinja a role admin
+    allow update, delete: if false;
+  }
+  match /iqsTokens/{tokenId} {
+    allow create: if true; // restrinja a admin
+    allow get: if true;
+    allow update: if request.resource.data.used == true && resource.data.used == false;
+    allow list: if false;
+  }
+}
+}
