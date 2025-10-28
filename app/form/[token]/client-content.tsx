@@ -9,10 +9,12 @@ import { useTokenValidation } from "@/lib/iqs/useTokenValidation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useSurveyByToken } from "@/hooks/useSurveyByToken";
+import { useRef } from "react";
 
 export default function ClientContent({ token }: { token: string }) {
   const status = useTokenValidation(token);
   const { loading, survey, error } = useSurveyByToken(token);
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (loading)
     return (
@@ -39,12 +41,19 @@ export default function ClientContent({ token }: { token: string }) {
       </Alert>
     );
 
+      
+
+   const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
       <IQSHeader
         title={survey.title}
         subtitle={survey.description ?? "Inquérito de Satisfação ZAP"}
         imageUrl={survey.headerImageUrl?? ""}
+         scrollToForm={scrollToForm}
       />
 
       {status.state === "loading" && (
@@ -70,7 +79,7 @@ export default function ClientContent({ token }: { token: string }) {
         </Alert>
       )}
 
-      {status.state === "valid" && <IQSForm token={token} survey={survey} />}
+      {status.state === "valid" && <IQSForm ref={formRef} token={token} survey={survey} />}
     </main>
   );
 }

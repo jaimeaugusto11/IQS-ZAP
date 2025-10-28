@@ -1,19 +1,18 @@
-// ------------------------------------------
-// file: components/iqs/IQSHeader.tsx
-// Cabeçalho com imagem e card transparente sobreposto
-// ------------------------------------------
 "use client";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
 export function IQSHeader({
   title,
   subtitle,
   imageUrl,
+  scrollToForm,
 }: {
   title: string;
   subtitle: string;
   imageUrl: string;
+  scrollToForm: () => void;
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl h-[800px]">
@@ -35,22 +34,29 @@ export function IQSHeader({
 
       {/* Card transparente sobre a imagem */}
       <div className="absolute inset-0 flex items-center justify-end">
-        <div className="bg-white/60 backdrop-blur-[2px] border border-white/30 text-[#d1196f] rounded-sm  shadow-lg p-8 w-11/12 max-w-[400px] text-start  h-3/4 mr-20 flex flex-col justify-center gap-12">
-          <h1 className="text-2xl font-semibold leading-tight mb-1 whitespace-pre-line">
+        <div className="bg-white/60 backdrop-blur-[2px] border border-white/30 text-[#d1196f] rounded-sm shadow-lg p-8 w-11/12 max-w-[400px] text-start h-3/4 mr-20 flex flex-col justify-center gap-8">
+          <h1 className="text-2xl font-semibold leading-tight whitespace-pre-line">
             {title}
           </h1>
-          <div className="text-md opacity-100 font-bold ">
+          <div className="text-md font-bold">
             {new Date().toLocaleDateString("pt-PT")}
           </div>
-          <div className="flex flex-col gap-5">
-            <p className="text-md opacity-100 text-[#d1196f]  whitespace-pre-line">{subtitle}</p>
-           
+          <p className="text-md text-[#d1196f] whitespace-pre-line font-medium">
+            {subtitle}
+          </p>
+
+          {/* Botão no header */}
+          <div className="flex justify-start mt-16">
+            <Button
+              type="button"
+              onClick={scrollToForm}
+              className="bg-gradient-to-r from-[#FFC613] to-[#D1196F] text-white text-lg px-8 py-3 rounded-md shadow-md hover:shadow-lg hover:translate-y-0.5 transition-all duration-200 font-medium"
+            >
+              Começar Inquérito
+            </Button>
           </div>
         </div>
       </div>
-
-      {/* Rodapé sobreposto (parte inferior da imagem) */}
-      
     </div>
   );
 }

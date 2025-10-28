@@ -10,15 +10,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { LikertQuestion } from "./LikertQuestion";
 import { OpenQuestion } from "./OpenQuestion";
 import { db } from "@/lib/firebase";
-import { collection, doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { IQSSurvey } from "@/lib/iqs/types";
 import { z } from "zod";
+import { forwardRef, useRef } from "react";
 
 // ------------------------------------------
 // Schema dinâmico baseado no backend
@@ -38,14 +50,15 @@ function buildSchema(survey: IQSSurvey) {
 // ------------------------------------------
 // Componente principal
 // ------------------------------------------
-export function IQSForm({ token, survey }: { token: string; survey: IQSSurvey }) {
-  const router = useRouter();
-  const schema = buildSchema(survey);
+export const IQSForm = forwardRef<HTMLFormElement, { token: string; survey: IQSSurvey }>(
+  ({ token, survey }, ref) => {
+    const router = useRouter();
+    const schema = buildSchema(survey);
 
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: Object.fromEntries(
-      survey.questions.map((q) => [q.id, q.type === "likert" ? 3 : ""])
+      survey.questions.map((q) => [q.id, q.type === "likert"])
     ),
     mode: "onChange",
   });
@@ -83,26 +96,39 @@ export function IQSForm({ token, survey }: { token: string; survey: IQSSurvey })
   // ------------------------------------------
   // Renderização
   // ------------------------------------------
+
+ 
+ 
+
   return (
+
+    
     <Card className="border-0 shadow-lg">
       <CardHeader>
         <CardTitle>{survey.title}</CardTitle>
+        
       </CardHeader>
 
       <Separator />
 
+      
+
+
       <CardContent className="space-y-8 p-6">
         {/* Introdução */}
         <p className="text-sm text-muted-foreground">
-          Por favor, leia atentamente cada afirmativa e responda conforme o seu grau de concordância:{" "}
+          Por favor, leia atentamente cada afirmativa e responda conforme o seu
+          grau de concordância:{" "}
           <span className="font-bold block mt-1">
-            1 = Discordo Totalmente | 2 = Discordo | 3 = Neutro | 4 = Concordo | 5 = Concordo Totalmente.
+            1 = Discordo Totalmente | 2 = Discordo | 3 = Neutro | 4 = Concordo |
+            5 = Concordo Totalmente.
           </span>
         </p>
 
+        
         {/* Formulário */}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form ref={ref} onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             {/* Cabeçalho dos números 1–5 (somente no topo) */}
             {survey.questions.some((q) => q.type === "likert") && (
               <div className="grid grid-cols-[minmax(320px,1fr)_repeat(5,72px)] text-center text-sm font-medium text-gray-600">
@@ -124,7 +150,7 @@ export function IQSForm({ token, survey }: { token: string; survey: IQSSurvey })
                     <FormControl>
                       {q.type === "likert" ? (
                         <LikertQuestion
-                        name={q.id  as string}
+                          name={q.id as string}
                           value={field.value as number}
                           onChange={field.onChange}
                           label={q.label}
@@ -132,7 +158,7 @@ export function IQSForm({ token, survey }: { token: string; survey: IQSSurvey })
                         />
                       ) : (
                         <OpenQuestion
-                          value={field.value  as string}
+                          value={field.value as string}
                           onChange={field.onChange}
                           max={q.maxLength ?? 500}
                         />
@@ -158,3 +184,5 @@ export function IQSForm({ token, survey }: { token: string; survey: IQSSurvey })
     </Card>
   );
 }
+);
+IQSForm.displayName = "IQSForm";
