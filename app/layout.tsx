@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +17,7 @@ export const metadata: Metadata = {
   title: "IQS ZAP",
   icons: {
     icon: "/icon.png",        // favicon principal
-    shortcut: "/icon.png",    // favicon para atalhos
-    apple: "/icon.png",       // favicon para iOS
+      // favicon para iOS
   },
 };
 
@@ -32,6 +32,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

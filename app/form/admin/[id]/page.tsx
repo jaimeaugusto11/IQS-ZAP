@@ -8,7 +8,7 @@ import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -38,6 +38,7 @@ const formSchemaE = z.object({
 type FormDataE = z.infer<typeof formSchemaE>;
 
 export default function EditSurvey() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const form = useForm<FormDataE>({
@@ -72,6 +73,7 @@ export default function EditSurvey() {
   async function onSave(v: FormDataE) {
     await updateDoc(doc(db, "iqsSurveys", id), v);
     toast.success("Alterações guardadas.");
+    router.back();
   }
 
   return (
@@ -180,7 +182,18 @@ export default function EditSurvey() {
                 ))}
               </div>
             </div>
-            <Button type="submit">Guardar</Button>
+            <div className="flex gap-3">
+              <Button type="submit">Guardar</Button>
+
+              {/* Botão de voltar/desistir */}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => router.back()}
+              >
+                Voltar / Desistir
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -30,6 +30,7 @@ import * as XLSX from "xlsx";
 import { motion } from "framer-motion";
 import type { IQSSurvey } from "@/lib/iqs/types";
 import { HeaderUploader } from "@/components/iqs/HeaderUploader";
+import { useRouter } from "next/navigation";
 
 const qSchema = z.object({
   id: z.string(),
@@ -50,6 +51,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function NewSurveyPage() {
+  const router = useRouter();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -93,6 +95,8 @@ export default function NewSurveyPage() {
       if (emails.length > 0) {
         await generateTokensForEmails(surveyRef.id, values.baseUrl, emails);
       }
+      toast.success("Inquérito criado.");
+       router.back(); 
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao criar inquérito");
     } finally {
@@ -319,6 +323,15 @@ export default function NewSurveyPage() {
             <div className="flex gap-3">
               <Button type="submit" disabled={saving}>
                 {saving ? "A criar…" : "Criar Inquérito"}
+              </Button>
+
+              {/* Botão de voltar */}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => router.back()}
+              >
+                Voltar / Desistir
               </Button>
             </div>
           </form>
