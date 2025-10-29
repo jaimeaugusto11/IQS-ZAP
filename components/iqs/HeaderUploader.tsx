@@ -1,7 +1,5 @@
-// ------------------------------------------
-// file: components/iqs/HeaderUploader.tsx
-// Upload de imagem com feedback e onChange
-// ------------------------------------------
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// components/iqs/HeaderUploader.tsx
 "use client";
 import { useState } from "react";
 import { UploadDropzone } from "@/lib/uploadthing";
@@ -19,26 +17,30 @@ export function HeaderUploader({ onChange, value }: Props) {
   const [url, setUrl] = useState<string | undefined>(value ?? undefined);
 
   return (
-    <div className="space-y-2">
-      {/* Upload */}
+    <div className="space-y-2 ">
       <UploadDropzone
+      
         endpoint="imageUploader"
         onUploadBegin={() => setIsUploading(true)}
         onClientUploadComplete={(res) => {
-          const uploadedUrl = res?.[0]?.url;
-          if (uploadedUrl) {
-            setUrl(uploadedUrl);
-            onChange(uploadedUrl);
+          // tentar primeiro o que o servidor devolveu
+          const fromServer =
+            res?.[0]?.serverData?.url ??
+            res?.[0]?.url ??           // algumas versões expõem diretamente
+            (res?.[0] as any)?.ufsUrl; // fallback duro
+          if (fromServer) {
+            setUrl(fromServer);
+            onChange(fromServer);
           }
           setIsUploading(false);
         }}
-        onUploadError={(e) => {
-          console.error(e);
+        onUploadError={(err) => {
+          console.error("Erro no upload:", err);
           setIsUploading(false);
         }}
+        className="border-dashed border-2 rounded-lg p-4 cursor-pointer bg-gray-300"
       />
 
-      {/* Estado de carregamento */}
       {isUploading && (
         <div className="flex items-center text-sm text-muted-foreground gap-2 animate-pulse">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -46,7 +48,6 @@ export function HeaderUploader({ onChange, value }: Props) {
         </div>
       )}
 
-      {/* Prévia da imagem */}
       {url && !isUploading && (
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">Prévia:</div>
@@ -54,11 +55,12 @@ export function HeaderUploader({ onChange, value }: Props) {
             src={url}
             alt="Imagem carregada"
             className="rounded-md border w-full max-w-xs object-cover"
+            width={200}
+            height={200}
           />
         </div>
       )}
 
-      {/* Botão remover */}
       {url && !isUploading && (
         <Button
           type="button"
