@@ -161,6 +161,7 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
                         <OpenQuestion
                           value={field.value as string }
                           onChange={field.onChange}
+                          label={q.label}
                           max={q.maxLength ?? 500}
                           
                         />

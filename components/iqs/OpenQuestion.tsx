@@ -7,17 +7,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 export function OpenQuestion({
-  value,
+  value, 
+  label,
   onChange,
   max = 500,
 }: {
   value: string;
+  label:string
   onChange: (v: string) => void;
   max?: number;
 }) {
   return (
     <div className="space-y-2">
-      <Label>O que mudaria no processo de formação da ZAP?</Label>
+      <Label>{label}</Label>
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

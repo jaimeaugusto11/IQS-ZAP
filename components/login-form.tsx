@@ -37,7 +37,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       localStorage.setItem("user", JSON.stringify(user));
       setError("");
       // Redireciona para a página admin
-      router.push("http://localhost:3000/form/admin");
+      router.push("https://iqs-zap.vercel.app/form/admin");
     } else {
       setError("MEC inválido. Tente novamente.");
     }
