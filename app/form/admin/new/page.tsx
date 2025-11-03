@@ -32,24 +32,38 @@ import type { IQSSurvey } from "@/lib/iqs/types";
 import { HeaderUploader } from "@/components/iqs/HeaderUploader";
 import { useRouter } from "next/navigation";
 
-const qSchema = z.object({
+// ---------------- Zod Schemas ----------------
+const qSchemaBase = z.object({
   id: z.string(),
-  label: z.string().min(1),
+  label: z.string().min(1, "A pergunta é obrigatória"),
   type: z.enum(["likert", "text"]),
   required: z.boolean().optional(),
-  maxLength: z.number().optional(),
+  maxLength: z.number().int().positive().optional(),
 });
+
+// Apenas texto pode ter maxLength; para likert é inválido
+const qSchema = qSchemaBase.superRefine((q, ctx) => {
+  if (q.type !== "text" && typeof q.maxLength !== "undefined") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["maxLength"],
+      message: "O tamanho máximo só se aplica a perguntas de Texto.",
+    });
+  }
+});
+
 const formSchema = z.object({
-  title: z.string().min(3),
+  title: z.string().min(3, "Título demasiado curto"),
   department: z.string().optional(),
   description: z.string().optional(),
   headerImageUrl: z.string().url().optional(),
-  questions: z.array(qSchema).min(1),
+  questions: z.array(qSchema).min(1, "Adicione pelo menos uma pergunta"),
   baseUrl: z.string().url().min(1),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
+// -------------- Componente principal --------------
 export default function NewSurveyPage() {
   const router = useRouter();
   const form = useForm<FormData>({
@@ -68,15 +82,105 @@ export default function NewSurveyPage() {
         },
       ],
     },
+    mode: "onBlur",
   });
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
+
+  const { control } = form;
+
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
     name: "questions",
   });
 
   const [emails, setEmails] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [questionsImportedCount, setQuestionsImportedCount] = useState(0);
 
+  // -------- Helpers XLSX (Perguntas)
+  function normalizeType(v: any): "likert" | "text" {
+    const s = String(v ?? "").trim().toLowerCase();
+    if (["likert", "escala", "1-5", "1–5", "1 a 5"].includes(s)) return "likert";
+    if (["text", "texto", "aberta", "aberto", "open"].includes(s)) return "text";
+    return "likert"; // default seguro
+  }
+
+  function parseBool(v: any): boolean | undefined {
+    if (v === undefined || v === null || String(v).trim() === "") return undefined;
+    const s = String(v).trim().toLowerCase();
+    if (["true", "1", "sim", "yes", "y"].includes(s)) return true;
+    if (["false", "0", "nao", "não", "no", "n"].includes(s)) return false;
+    return undefined;
+  }
+
+  async function handleQuestionsFile(file: File) {
+    try {
+      if (!file.name.endsWith(".xlsx")) {
+        toast.error("Por favor, carregue um ficheiro .xlsx com as perguntas.");
+        return;
+      }
+
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+      if (!rows.length) {
+        toast.error("O ficheiro não contém linhas.");
+        return;
+      }
+
+      // Espera-se colunas: label, type, required, maxLength (case-insensitive)
+      const questions = rows.map((r, idx) => {
+        const label =
+          r.label ?? r.Label ?? r.LABEL ?? r.pergunta ?? r.Pergunta ?? r.PERGUNTA ?? "";
+        const typeRaw = r.type ?? r.Type ?? r.TYPE ?? r.tipo ?? r.Tipo ?? r.TIPO ?? "";
+        const requiredRaw =
+          r.required ?? r.Required ?? r.REQUIRED ?? r.obrigatoria ?? r.Obrigatória ?? r.OBRIGATORIA;
+        const maxLengthRaw =
+          r.maxLength ?? r.MaxLength ?? r.MAXLENGTH ?? r["max length"] ?? r["Max Length"];
+
+        const type = normalizeType(typeRaw);
+        const required = parseBool(requiredRaw);
+        const ml = Number.isFinite(Number(maxLengthRaw)) ? Number(maxLengthRaw) : undefined;
+
+        return {
+          id: `q${idx + 1}`,
+          label: String(label).trim(),
+          type,
+          required,
+          maxLength: type === "text" ? ml : undefined,
+        };
+      });
+
+      const parsed = z.array(qSchema).safeParse(questions);
+      if (!parsed.success) {
+        console.error(parsed.error);
+        toast.error("Falha ao validar perguntas. Verifique colunas e tipos.");
+        return;
+      }
+
+      replace(parsed.data); // substitui o field array
+      setQuestionsImportedCount(parsed.data.length);
+      toast.success(`Importadas ${parsed.data.length} perguntas do XLSX.`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Não foi possível ler o XLSX de perguntas.");
+    }
+  }
+
+  function downloadQuestionsTemplate() {
+    const header = ["label", "type", "required", "maxLength"];
+    const example = [
+      ["A minha equipa comunica bem entre si.", "likert", "true", ""],
+      ["O que melhoraria no processo de formação?", "text", "false", "300"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, ...example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Perguntas");
+    XLSX.writeFile(wb, "template_perguntas.xlsx");
+  }
+
+  // -------------- Persistência --------------
   async function onCreate(values: FormData) {
     try {
       setSaving(true);
@@ -96,7 +200,7 @@ export default function NewSurveyPage() {
         await generateTokensForEmails(surveyRef.id, values.baseUrl, emails);
       }
       toast.success("Inquérito criado.");
-       router.back(); 
+      router.back();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao criar inquérito");
     } finally {
@@ -108,7 +212,7 @@ export default function NewSurveyPage() {
     const data = await file.arrayBuffer();
     if (file.name.endsWith(".csv")) {
       const text = new TextDecoder().decode(new Uint8Array(data));
-      const rows = text.split(/ ? /).map((l) => l.split(","));
+      const rows = text.split(/\r?\n/).map((l) => l.split(","));
       const header = rows.shift() || [];
       const idx = header.findIndex((h) => /email/i.test(h));
       const list = rows
@@ -162,10 +266,7 @@ export default function NewSurveyPage() {
     toast.success("Tokens gerados e XLSX descarregado.");
   }
 
-  
-
-
-
+  // -------------- Render --------------
   return (
     <main className="mx-auto max-w-5xl p-6 space-y-6">
       <Card className="shadow-lg">
@@ -224,81 +325,138 @@ export default function NewSurveyPage() {
             </div>
 
             <Separator />
-            <div className="space-y-3">
+
+            {/* Importar Perguntas via XLSX */}
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Perguntas</h3>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() =>
-                    append({
-                      id: `q${fields.length + 1}`,
-                      label: `Pergunta ${fields.length + 1}`,
-                      type: "likert",
-                      required: true,
-                    })
-                  }
-                >
-                  Adicionar
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {fields.map((f, idx) => (
-                  <motion.div
-                    key={f.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-lg border p-4"
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={downloadQuestionsTemplate}>
+                    Descarregar template (XLSX)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      append({
+                        id: `q${fields.length + 1}`,
+                        label: `Pergunta ${fields.length + 1}`,
+                        type: "likert",
+                        required: true,
+                      })
+                    }
                   >
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="md:col-span-2">
-                        <Label>Pergunta #{idx + 1}</Label>
-                        <Input
-                          {...form.register(`questions.${idx}.label` as const)}
-                        />
+                    Adicionar manualmente
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-md border p-4 space-y-2">
+                <Label>Importar Perguntas (XLSX)</Label>
+                <Input
+                  type="file"
+                  accept=".xlsx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleQuestionsFile(file);
+                  }}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {questionsImportedCount > 0
+                    ? `Importadas: ${questionsImportedCount} perguntas`
+                    : "Formato esperado: colunas label, type, required, maxLength"}
+                </p>
+              </div>
+
+              {/* Lista/edição das perguntas (reflete o XLSX) */}
+              <div className="space-y-4">
+                {fields.map((f, idx) => {
+                  const typePath = `questions.${idx}.type` as const;
+                  const maxLenPath = `questions.${idx}.maxLength` as const;
+                  const currentType = form.watch(typePath);
+                  const isText = currentType === "text";
+
+                  return (
+                    <motion.div
+                      key={f.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-lg border p-4"
+                    >
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="md:col-span-2">
+                          <Label>Pergunta #{idx + 1}</Label>
+                          <Input
+                            {...form.register(`questions.${idx}.label` as const)}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Tipo</Label>
+                          <select
+                            className="h-10 w-full rounded-md border px-3"
+                            {...form.register(typePath)}
+                            onChange={(e) => {
+                              const val = e.target.value as "likert" | "text";
+                              form.setValue(typePath, val, { shouldDirty: true, shouldValidate: true });
+                              // Ao mudar para likert, limpar maxLength
+                              if (val !== "text") {
+                                form.setValue(maxLenPath, undefined as any, { shouldDirty: true, shouldValidate: true });
+                              }
+                            }}
+                            value={currentType}
+                          >
+                            <option value="likert">Likert 1–5</option>
+                            <option value="text">Texto</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label>Obrigatória?</Label>
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5"
+                            {...form.register(`questions.${idx}.required` as const)}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Max length (apenas Texto)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            placeholder={isText ? "Ex.: 300" : "—"}
+                            disabled={!isText}
+                            {...form.register(
+                              maxLenPath,
+                              { valueAsNumber: true }
+                            )}
+                            onChange={(e) => {
+                              if (!isText) {
+                                // segurança extra: impedir set quando não é texto
+                                e.preventDefault();
+                                form.setValue(maxLenPath, undefined as any, { shouldDirty: true, shouldValidate: true });
+                              }
+                            }}
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Só aplicável a perguntas de Texto; para Likert é ignorado.
+                          </p>
+                        </div>
+
+                        <div className="self-end justify-self-end">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => remove(idx)}
+                          >
+                            Remover
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <Label>Tipo</Label>
-                        <select
-                          className="h-10 w-full rounded-md border px-3"
-                          {...form.register(`questions.${idx}.type` as const)}
-                        >
-                          <option value="likert">Likert 1–5</option>
-                          <option value="text">Texto</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label>Obrigatória?</Label>
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5"
-                          {...form.register(
-                            `questions.${idx}.required` as const
-                          )}
-                        />
-                      </div>
-                      <div>
-                        <Label>Max length (texto)</Label>
-                        <Input
-                          type="number"
-                          {...form.register(
-                            `questions.${idx}.maxLength` as const,
-                            { valueAsNumber: true }
-                          )}
-                        />
-                      </div>
-                      <div className="self-end justify-self-end">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          onClick={() => remove(idx)}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
 
@@ -325,7 +483,6 @@ export default function NewSurveyPage() {
                 {saving ? "A criar…" : "Criar Inquérito"}
               </Button>
 
-              {/* Botão de voltar */}
               <Button
                 type="button"
                 variant="secondary"
