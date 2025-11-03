@@ -32,38 +32,27 @@ import type { IQSSurvey } from "@/lib/iqs/types";
 import { HeaderUploader } from "@/components/iqs/HeaderUploader";
 import { useRouter } from "next/navigation";
 
-// ---------------- Zod Schemas ----------------
-const qSchemaBase = z.object({
+const qSchema = z.object({
   id: z.string(),
-  label: z.string().min(1, "A pergunta é obrigatória"),
+  label: z.string().min(1),
   type: z.enum(["likert", "text"]),
   required: z.boolean().optional(),
-  maxLength: z.number().int().positive().optional(),
-});
-
-// Apenas texto pode ter maxLength; para likert é inválido
-const qSchema = qSchemaBase.superRefine((q, ctx) => {
-  if (q.type !== "text" && typeof q.maxLength !== "undefined") {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["maxLength"],
-      message: "O tamanho máximo só se aplica a perguntas de Texto.",
-    });
-  }
+  maxLength: z.number().optional(),
 });
 
 const formSchema = z.object({
-  title: z.string().min(3, "Título demasiado curto"),
+  title: z.string().min(3),
   department: z.string().optional(),
   description: z.string().optional(),
   headerImageUrl: z.string().url().optional(),
-  questions: z.array(qSchema).min(1, "Adicione pelo menos uma pergunta"),
+  questions: z.array(qSchema).min(1),
   baseUrl: z.string().url().min(1),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-// -------------- Componente principal --------------
+
+
 export default function NewSurveyPage() {
   const router = useRouter();
   const form = useForm<FormData>({
@@ -82,7 +71,6 @@ export default function NewSurveyPage() {
         },
       ],
     },
-    mode: "onBlur",
   });
 
   const { control } = form;
@@ -101,7 +89,8 @@ export default function NewSurveyPage() {
     const s = String(v ?? "").trim().toLowerCase();
     if (["likert", "escala", "1-5", "1–5", "1 a 5"].includes(s)) return "likert";
     if (["text", "texto", "aberta", "aberto", "open"].includes(s)) return "text";
-    return "likert"; // default seguro
+    // default
+    return "likert";
   }
 
   function parseBool(v: any): boolean | undefined {
@@ -152,6 +141,7 @@ export default function NewSurveyPage() {
         };
       });
 
+      // valida com zod
       const parsed = z.array(qSchema).safeParse(questions);
       if (!parsed.success) {
         console.error(parsed.error);
@@ -180,7 +170,6 @@ export default function NewSurveyPage() {
     XLSX.writeFile(wb, "template_perguntas.xlsx");
   }
 
-  // -------------- Persistência --------------
   async function onCreate(values: FormData) {
     try {
       setSaving(true);
@@ -266,7 +255,6 @@ export default function NewSurveyPage() {
     toast.success("Tokens gerados e XLSX descarregado.");
   }
 
-  // -------------- Render --------------
   return (
     <main className="mx-auto max-w-5xl p-6 space-y-6">
       <Card className="shadow-lg">
@@ -368,95 +356,62 @@ export default function NewSurveyPage() {
                 </p>
               </div>
 
-              {/* Lista/edição das perguntas (reflete o XLSX) */}
+              {/* Lista/edição das perguntas (continua a existir e reflete o XLSX) */}
               <div className="space-y-4">
-                {fields.map((f, idx) => {
-                  const typePath = `questions.${idx}.type` as const;
-                  const maxLenPath = `questions.${idx}.maxLength` as const;
-                  const currentType = form.watch(typePath);
-                  const isText = currentType === "text";
-
-                  return (
-                    <motion.div
-                      key={f.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-lg border p-4"
-                    >
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <div className="md:col-span-2">
-                          <Label>Pergunta #{idx + 1}</Label>
-                          <Input
-                            {...form.register(`questions.${idx}.label` as const)}
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Tipo</Label>
-                          <select
-                            className="h-10 w-full rounded-md border px-3"
-                            {...form.register(typePath)}
-                            onChange={(e) => {
-                              const val = e.target.value as "likert" | "text";
-                              form.setValue(typePath, val, { shouldDirty: true, shouldValidate: true });
-                              // Ao mudar para likert, limpar maxLength
-                              if (val !== "text") {
-                                form.setValue(maxLenPath, undefined as any, { shouldDirty: true, shouldValidate: true });
-                              }
-                            }}
-                            value={currentType}
-                          >
-                            <option value="likert">Likert 1–5</option>
-                            <option value="text">Texto</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <Label>Obrigatória?</Label>
-                          <input
-                            type="checkbox"
-                            className="h-5 w-5"
-                            {...form.register(`questions.${idx}.required` as const)}
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Max length (apenas Texto)</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            placeholder={isText ? "Ex.: 300" : "—"}
-                            disabled={!isText}
-                            {...form.register(
-                              maxLenPath,
-                              { valueAsNumber: true }
-                            )}
-                            onChange={(e) => {
-                              if (!isText) {
-                                // segurança extra: impedir set quando não é texto
-                                e.preventDefault();
-                                form.setValue(maxLenPath, undefined as any, { shouldDirty: true, shouldValidate: true });
-                              }
-                            }}
-                          />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Só aplicável a perguntas de Texto; para Likert é ignorado.
-                          </p>
-                        </div>
-
-                        <div className="self-end justify-self-end">
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={() => remove(idx)}
-                          >
-                            Remover
-                          </Button>
-                        </div>
+                {fields.map((f, idx) => (
+                  <motion.div
+                    key={f.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg border p-4"
+                  >
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="md:col-span-2">
+                        <Label>Pergunta #{idx + 1}</Label>
+                        <Input
+                          {...form.register(`questions.${idx}.label` as const)}
+                        />
                       </div>
-                    </motion.div>
-                  );
-                })}
+                      <div>
+                        <Label>Tipo</Label>
+                        <select
+                          className="h-10 w-full rounded-md border px-3"
+                          {...form.register(`questions.${idx}.type` as const)}
+                        >
+                          <option value="likert">Likert 1–5</option>
+                          <option value="text">Texto</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Obrigatória?</Label>
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5"
+                          {...form.register(`questions.${idx}.required` as const)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Max length (texto)</Label>
+                        <Input
+                          type="number"
+                          {...form.register(
+                            `questions.${idx}.maxLength` as const,
+                            { valueAsNumber: true }
+                          )}
+                        />
+                      </div>
+                      <div className="self-end justify-self-end">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => remove(idx)}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
 
@@ -483,6 +438,7 @@ export default function NewSurveyPage() {
                 {saving ? "A criar…" : "Criar Inquérito"}
               </Button>
 
+              {/* Botão de voltar */}
               <Button
                 type="button"
                 variant="secondary"
