@@ -77,7 +77,7 @@ export const IQSForm = forwardRef<HTMLDivElement, { token: string; survey: IQSSu
         const respRef = doc(collection(db, "iqsResponses"));
         tx.set(respRef, {
           token,
-          surveyId: survey.id,
+           surveyId: t.surveyId,  
           department: survey.department ?? null,
           answers: data,
           submittedAt: serverTimestamp(),

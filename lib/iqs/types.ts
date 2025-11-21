@@ -15,6 +15,7 @@ export type IQSTokenDoc = {
   used: boolean;
   valid: boolean;
   surveyId: string;
+  email?: string;
   department?: string;
   createdAt?: any; // Timestamp
   expiresAt?: any; // Timestamp
