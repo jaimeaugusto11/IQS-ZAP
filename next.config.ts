@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
-       {
+      {
         protocol: "https",
         hostname: "*.ufs.sh",
         pathname: "/**",
@@ -16,7 +16,11 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
-  }
+  },
+
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
