@@ -238,6 +238,7 @@ export default function NewSurveyPage() {
         valid: true,
         used: false,
         surveyId,
+         email, 
         createdAt: serverTimestamp(),
         emailHash: CryptoJS.SHA256(email).toString(),
       });
