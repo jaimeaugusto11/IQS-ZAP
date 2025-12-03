@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ------------------------------------------
 // file: components/iqs/SurveyStatsSection.tsx
-// Estatísticas + download de respondidos/pendentes + Power Automate
+// Estatísticas + download + Power Automate (convite + lembrete)
 // ------------------------------------------
 "use client";
 
@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -45,6 +47,9 @@ export function SurveyStatsSection({ surveyId }: Props) {
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [initialSent, setInitialSent] = useState(false);
+  const [surveyTitle, setSurveyTitle] = useState<string>("");
+  const [surveyImageUrl, setSurveyImageUrl] = useState<string>(""); // imagem do IQS
+  const [emailSubject, setEmailSubject] = useState<string>(""); // assunto do e-mail
 
   useEffect(() => {
     (async () => {
@@ -68,11 +73,14 @@ export function SurveyStatsSection({ surveyId }: Props) {
         });
         setTokens(rows);
 
-        // 2) Metadados do inquérito (para saber se já houve envio inicial)
+        // 2) Metadados do inquérito (título, imagem, initialSent, assunto guardado)
         const surveySnap = await getDoc(doc(db, "iqsSurveys", surveyId));
         if (surveySnap.exists()) {
           const sdata = surveySnap.data() as any;
           setInitialSent(!!sdata.initialSent);
+          setSurveyTitle(sdata.title ?? "IQS");
+          setSurveyImageUrl(sdata.headerImageUrl ?? "");
+          setEmailSubject(sdata.emailSubject ?? "");
         }
       } catch (e: any) {
         console.error(e);
@@ -93,6 +101,9 @@ export function SurveyStatsSection({ surveyId }: Props) {
 
   const respondedList = tokens.filter((t) => t.used);
   const pendingList = tokens.filter((t) => !t.used);
+
+  const trimmedSubject = emailSubject.trim();
+  const subjectMissing = trimmedSubject.length === 0;
 
   // Helpers: XLSX download
   function downloadExcel(rows: TokenRow[], filename: string) {
@@ -121,6 +132,10 @@ export function SurveyStatsSection({ surveyId }: Props) {
         toast.info("Os convites iniciais já foram enviados. Use o lembrete.");
         return;
       }
+      if (subjectMissing) {
+        toast.error("Defina o assunto do e-mail antes de enviar.");
+        return;
+      }
 
       const url = process.env.NEXT_PUBLIC_IQS_AUTOMATE_URL;
       if (!url) {
@@ -130,11 +145,14 @@ export function SurveyStatsSection({ surveyId }: Props) {
 
       const payload = {
         surveyId,
-        type: "initial", // <— para o fluxo saber que é primeiro envio
+        surveyTitle,
+        surveyImageUrl,     // imagem do header
+        emailSubject: trimmedSubject,
+        type: "initial",
         recipients: tokens.map((t) => ({
           email: t.email,
           token: t.token,
-        })), // estrutura [email, token]
+        })), // [email, token]
       };
 
       const res = await fetch(url, {
@@ -147,10 +165,10 @@ export function SurveyStatsSection({ surveyId }: Props) {
         throw new Error(`Erro ${res.status}`);
       }
 
-      // Marca no inquérito que já houve envio inicial
       await updateDoc(doc(db, "iqsSurveys", surveyId), {
         initialSent: true,
         initialSentAt: serverTimestamp(),
+        emailSubject: trimmedSubject,
       });
       setInitialSent(true);
 
@@ -168,6 +186,11 @@ export function SurveyStatsSection({ surveyId }: Props) {
         toast.info("Não existem pendentes.");
         return;
       }
+      if (subjectMissing) {
+        toast.error("Defina o assunto do e-mail antes de enviar.");
+        return;
+      }
+
       const url = process.env.NEXT_PUBLIC_IQS_AUTOMATE_URL;
       if (!url) {
         toast.error("URL do Power Automate não está configurada.");
@@ -176,11 +199,14 @@ export function SurveyStatsSection({ surveyId }: Props) {
 
       const payload = {
         surveyId,
-        type: "reminder", // <— lembrete
+        surveyTitle,
+        surveyImageUrl,
+        emailSubject: trimmedSubject,
+        type: "reminder",
         recipients: pendingList.map((p) => ({
           email: p.email,
           token: p.token,
-        })), // estrutura [email, token]
+        })), // [email, token]
       };
 
       const res = await fetch(url, {
@@ -192,6 +218,11 @@ export function SurveyStatsSection({ surveyId }: Props) {
       if (!res.ok) {
         throw new Error(`Erro ${res.status}`);
       }
+
+      await updateDoc(doc(db, "iqsSurveys", surveyId), {
+        lastReminderAt: serverTimestamp(),
+        emailSubject: trimmedSubject,
+      });
 
       toast.success("Base de pendentes enviada para o Power Automate.");
     } catch (e: any) {
@@ -224,6 +255,23 @@ export function SurveyStatsSection({ surveyId }: Props) {
                 Taxa de resposta: {percent}%
               </p>
               <Progress value={percent} className="h-2" />
+            </div>
+
+            {/* Assunto do e-mail para convite/lembrete */}
+            <div className="space-y-2">
+              <Label htmlFor="email-subject">
+                Assunto do e-mail (convite / lembrete)
+              </Label>
+              <Input
+                id="email-subject"
+                placeholder="Ex.: IQS ZAP — Inquérito de Satisfação Formação 2025"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Este assunto será usado tanto no envio inicial como nos
+                lembretes. Os botões ficam desativados sem assunto.
+              </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -275,7 +323,7 @@ export function SurveyStatsSection({ surveyId }: Props) {
                   className="w-full"
                   variant="default"
                   onClick={sendInitialToAutomate}
-                  disabled={initialSent || !tokens.length}
+                  disabled={initialSent || !tokens.length || subjectMissing}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   Enviar convites iniciais (todos)
@@ -284,7 +332,7 @@ export function SurveyStatsSection({ surveyId }: Props) {
                   className="w-full"
                   variant="outline"
                   onClick={sendPendingToAutomate}
-                  disabled={!pendingList.length}
+                  disabled={!pendingList.length || subjectMissing}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   Enviar lembrete (pendentes)
